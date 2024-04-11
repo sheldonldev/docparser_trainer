@@ -1,0 +1,78 @@
+{
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+    "editor.lineNumbers": "on",
+    "python.envFile": "${workspaceFolder}/.env",
+    // testing
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "--collect-only",
+    ],
+    // type checking
+    "python.analysis.typeCheckingMode": "basic",
+    "mypy.dmypyExecutable": "dmypy",
+    "mypy.enabled": true,
+    "mypy.extraArguments": [
+        "--check-untyped-defs"
+    ],
+    // sort and format
+    "isort.check": true,
+    "isort.args": [
+        "--profile=black",
+        "--line-length=80"
+    ],
+    "black-formatter.args": [
+        "--line-length=80",
+        "--skip-string-normalization"
+    ],
+    // linting
+    "flake8.args": [
+        "--max-line-length=80",
+        "--ignore=W503,E203,E741",
+    ],
+    // Code Spell Checker
+    "cSpell.enabled": true,
+    "cSpell.language": "en",
+    "cSpell.maxNumberOfProblems": 80,
+    "cSpell.numSuggestions": 8,
+    "cSpell.minWordLength": 4,
+    "cSpell.enabledLanguageIds": [
+        "python",
+        "json",
+        "markdown",
+        "toml",
+        "plaintext",
+        "yml",
+    ],
+    "cSpell.allowCompoundWords": true,
+    "cSpell.ignoreWords": [],
+    "cSpell.userWords": [],
+    "cSpell.ignorePaths": [
+        ".venv",
+        "data"
+    ],
+    "cSpell.flagWords": [
+        "hte",
+        "fuck"
+    ],
+    "cSpell.words": [],
+    "git.ignoreLimitWarning": true,
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+    },
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features",
+    },
+    "[markdown]": {
+        "editor.defaultFormatter": "DavidAnson.vscode-markdownlint",
+    },
+    "[toml]": {
+        "editor.defaultFormatter": "tamasfe.even-better-toml",
+    },
+    "[ignore]": {
+        "editor.defaultFormatter": "foxundermoon.shell-format",
+    }
+}

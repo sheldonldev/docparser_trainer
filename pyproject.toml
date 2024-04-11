@@ -1,0 +1,35 @@
+[build-system]
+requires = [ "setuptools",]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docparser_trainer"
+version = "0.0.1"
+description = "..."
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [ "Programming Language :: Python :: 3", "Operating System :: OS Independent",]
+dependencies = [ "rich",]
+[[project.authors]]
+name = "Sheldon Lee"
+email = "sheldonlee@outlook.com"
+
+[project.license]
+file = "LICENSE"
+
+[project.optional-dependencies]
+dev = [ "build", "pytest", "pytest-env", "mypy", "pre-commit",]
+
+[project.scripts]
+run = "docparser_trainer.main:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.sys-dependencies]
+apt = []
+
+[tool.setuptools.packages.find]
+where = [ "src",]
+include = [ "docparser_trainer*",]
+exclude = [ "tests",]

@@ -1,0 +1,40 @@
+# https://pre-commit.com/#top_level-default_language_version
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+        exclude: ^LICENSE|\.(html|csv|txt|svg|py)$
+      - id: requirements-txt-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: \.(html|svg)$
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (python)
+        args:
+          - "--profile=black"
+          - "--line-length=80"
+
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        args:
+          - "--line-length=80"
+          - "--skip-string-normalization"
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args:
+          - "--max-line-length=80"
+          - "--ignore=W503,E203"
+          - "--max-complexity=18"
+        additional_dependencies:
+          - "mccabe"
