@@ -58,7 +58,11 @@
         "hte",
         "fuck"
     ],
-    "cSpell.words": [],
+    "cSpell.words": [
+        "dtype",
+        "iterrows",
+        "optim"
+    ],
     "git.ignoreLimitWarning": true,
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
