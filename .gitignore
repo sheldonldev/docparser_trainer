@@ -18,3 +18,7 @@ temp-*
 
 data
 wheels
+pretrained
+results*
+pretrained*
+checkpoints

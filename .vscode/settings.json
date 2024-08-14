@@ -22,21 +22,21 @@
     "isort.check": true,
     "isort.args": [
         "--profile=black",
-        "--line-length=80"
+        "--line-length=100"
     ],
     "black-formatter.args": [
-        "--line-length=80",
+        "--line-length=100",
         "--skip-string-normalization"
     ],
     // linting
     "flake8.args": [
-        "--max-line-length=80",
+        "--max-line-length=100",
         "--ignore=W503,E203,E741",
     ],
     // Code Spell Checker
     "cSpell.enabled": true,
     "cSpell.language": "en",
-    "cSpell.maxNumberOfProblems": 80,
+    "cSpell.maxNumberOfProblems": 100,
     "cSpell.numSuggestions": 8,
     "cSpell.minWordLength": 4,
     "cSpell.enabledLanguageIds": [
@@ -61,7 +61,9 @@
     "cSpell.words": [
         "dtype",
         "iterrows",
-        "optim"
+        "optim",
+        "preds",
+        "seqeval"
     ],
     "git.ignoreLimitWarning": true,
     "[python]": {
@@ -78,5 +80,30 @@
     },
     "[ignore]": {
         "editor.defaultFormatter": "foxundermoon.shell-format",
-    }
+    },
+    // tmux
+    "terminal.integrated.defaultProfile.osx": "tmux-shell",
+    "terminal.integrated.profiles.osx": {
+        "tmux-shell": {
+            "path": "tmux",
+            "args": [
+                "new-session",
+                "-A",
+                "-s",
+                "vscode:${workspaceFolder}"
+            ]
+        }
+    },
+    "terminal.integrated.defaultProfile.linux": "tmux-shell",
+    "terminal.integrated.profiles.linux": {
+        "tmux-shell": {
+            "path": "tmux",
+            "args": [
+                "new-session",
+                "-A",
+                "-s",
+                "vscode:${workspaceFolder}"
+            ]
+        }
+    },
 }
