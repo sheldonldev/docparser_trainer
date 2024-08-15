@@ -17,7 +17,7 @@ from transformers import (  # type: ignore
 
 from docparser_trainer._cfg import MODEL_ROOT, PROJECT_ROOT, setup_env
 from docparser_trainer._interface.get_datasets import get_datasets
-from docparser_trainer.machine_reading_comprehension.cmrc_eval import evaluate_cmrc
+from docparser_trainer.fragment_extraction.cmrc_eval import evaluate_cmrc
 
 setup_env()
 CHECKPOINTS_DIR = PROJECT_ROOT.joinpath(
