@@ -1,8 +1,6 @@
 import random
-from typing import Any, Callable, Dict, List
 
-import jieba
-from util_common.decorator import proxy
+import jieba  # type: ignore
 
 same_dict = {}
 with open("data/synonym.txt", "r") as r:
@@ -80,66 +78,67 @@ def random_change_same_word(sentence, prob):
     return sentence
 
 
-# 随机回译
-@proxy(http_proxy='http://127.0.0.1:17890', https_proxy='https://127.0.0.1:17890')
-def random_googletrans(sentence, prob):
-    if random.random() > prob or len(sentence) == 0:
-        return sentence
-    else:
-        from googletrans import Translator
+# # 随机回译
+# @proxy(http_proxy='http://127.0.0.1:17890', https_proxy='https://127.0.0.1:17890')
+# def random_googletrans(sentence, prob):
+#     if random.random() > prob or len(sentence) == 0:
+#         return sentence
+#     else:
+#         from googletrans import Translator
 
-        t_from = 'zh-cn'
-        t_to = 'en'
-        translator = Translator()
-        s = translator.translate(text=sentence, dest=t_to, src=t_from)
-        eng = s.text
-        s = translator.translate(text=eng, dest=t_from, src=t_to)
-        return s.text
+#         t_from = 'zh-cn'
+#         t_to = 'en'
+#         translator = Translator()
+#         s = translator.translate(text=sentence, dest=t_to, src=t_from)
+#         eng = s.text
+#         s = translator.translate(text=eng, dest=t_from, src=t_to)
+#         return s.text
 
 
-# 有道随机回译
-def back_translate(
-    text: str,
-    prob: float,
-    keywords: List[str] = None,
-    handle_func: Callable[[Dict[str, str]], Any] = lambda x: x,
-) -> Any:
-    if random.random() > prob:
-        return text
-    else:
-        schemas = {"youdao": [["zh-CN", "en", "zh-CN"]]}
-        res = {"origin": text}
-        for platform, schema_list in schemas.items():
-            trans_func = __import__(f"{platform}.main", fromlist=platform).back_translate
-            for schema in schema_list:
-                try:
-                    schema_key = "->".join(schema)
-                    res[f"{platform}    {schema_key}"] = trans_func(text, lang_list=schema)
-                except Exception:
-                    pass
+# # 有道随机回译
+# def back_translate(
+#     text: str,
+#     prob: float,
+#     keywords: List[str] = None,
+#     handle_func: Callable[[Dict[str, str]], Any] = lambda x: x,
+# ) -> Any:
+#     if random.random() > prob:
+#         return text
+#     else:
+#         schemas = {"youdao": [["zh-CN", "en", "zh-CN"]]}
+#         res = {"origin": text}
+#         for platform, schema_list in schemas.items():
+#             trans_func = __import__(f"{platform}.main", fromlist=platform).back_translate
+#             for schema in schema_list:
+#                 try:
+#                     schema_key = "->".join(schema)
+#                     res[f"{platform}    {schema_key}"] = trans_func(text, lang_list=schema)
+#                 except Exception:
+#                     pass
 
-                if keywords:  # 使用keyword mask
-                    keywords = list(set(keywords))  # 过滤重复keywords
-                    hit_keywords = [keyword for keyword in keywords if keyword in text]
-                    for selected_keyword in hit_keywords:
-                        try:
-                            replaced_text = text.replace(selected_keyword, "UNK")
-                            back_translate_res = trans_func(replaced_text, lang_list=schema)
-                            if "UNK" in back_translate_res or "unk" in back_translate_res:
-                                back_translate_res = back_translate_res.replace(
-                                    "UNK", selected_keyword
-                                )
-                                back_translate_res = back_translate_res.replace(
-                                    "unk", selected_keyword
-                                )
-                                res[f"{platform}    {schema_key}    kw_mask{selected_keyword}"] = (
-                                    back_translate_res
-                                )
-                        except Exception:
-                            pass
+#                 if keywords:  # 使用keyword mask
+#                     keywords = list(set(keywords))  # 过滤重复keywords
+#                     hit_keywords = [keyword for keyword in keywords if keyword in text]
+#                     for selected_keyword in hit_keywords:
+#                         try:
+#                             replaced_text = text.replace(selected_keyword, "UNK")
+#                             back_translate_res = trans_func(replaced_text, lang_list=schema)
+#                             if "UNK" in back_translate_res or "unk" in back_translate_res:
+#                                 back_translate_res = back_translate_res.replace(
+#                                     "UNK", selected_keyword
+#                                 )
+#                                 back_translate_res = back_translate_res.replace(
+#                                     "unk", selected_keyword
+#                                 )
+#                                 res[f"{platform}    {schema_key}    kw_mask{selected_keyword}"]=(
+#                                     back_translate_res
+#                                 )
+#                         except Exception:
+#                             pass
 
-        return res['youdao    zh-CN->en->zh-CN']
+#         return res['youdao    zh-CN->en->zh-CN']
 
+# TODO: 随机回译
 
 func_list = [
     random_delete_word,
@@ -147,8 +146,6 @@ func_list = [
     random_swap_word,
     random_delete_symbol,
     random_change_same_word,
-    # back_translate,
-    # random_googletrans,  # 要翻墙才能用...
 ]
 
 if __name__ == '__main__':
