@@ -1,5 +1,8 @@
+from collections import defaultdict
 from pathlib import Path
+from typing import Dict
 
+import numpy as np
 from docparser_models._model_interface.model_manager import (
     ensure_local_model,
     load_local_model,
@@ -14,10 +17,11 @@ from transformers import (  # type: ignore
 
 from docparser_trainer._cfg import MODEL_ROOT, PROJECT_ROOT, setup_env
 from docparser_trainer._interface.get_datasets import get_datasets
+from docparser_trainer.machine_reading_comprehension.cmrc_eval import evaluate_cmrc
 
 setup_env()
 CHECKPOINTS_DIR = PROJECT_ROOT.joinpath(
-    "checkpoints/machine_reading_comprehension/fragment_extraction"
+    "checkpoints/machine_reading_comprehension/fragment_extraction_slide"
 )
 
 
@@ -112,7 +116,7 @@ def preprocess_datasets(tokenizer, datasets):
                 start_char, end_char, offset, context_start, content_end
             )
 
-            if truncate_idx < 5:
+            if truncate_idx < 3:
                 print_answer()
 
             start_positions.append(start_token)
@@ -137,16 +141,81 @@ def preprocess_datasets(tokenizer, datasets):
     return tokenized_datasets
 
 
-def train(ckpt_dir: Path | None = None):
+def get_result(start_logits, end_logits, examples, features):
+
+    predictions: Dict[str, str] = {}
+    references: Dict[str, str] = {}
+
+    # example 和 feature 的映射
+    example_to_feature = defaultdict(list)
+    for idx, example_id in enumerate(features['example_ids']):
+        example_to_feature[example_id].append(idx)
+
+    # 最多个最优答案候选
+    n_best = 20
+    # 答案的最长 token
+    max_answer_length = 32
+
+    for example in examples:
+        example_id = example['id']
+        context = example['context']
+        answers = []
+        for feature_id in example_to_feature[example_id]:
+            start_logit = start_logits[feature_id]
+            end_logit = end_logits[feature_id]
+            offset = features[feature_id]['offset_mapping']
+            start_ids = np.argsort(start_logit)[::-1][:n_best].tolist()
+            end_ids = np.argsort(end_logit)[::-1][:n_best].tolist()
+            for start_id in start_ids:
+                for end_id in end_ids:
+                    if offset[start_id] is None or offset[end_id] is None:
+                        continue
+                    if end_id < start_id or end_id - start_id + 1 > max_answer_length:
+                        continue
+                    answers.append(
+                        {
+                            "text": context[offset[start_id][0] : offset[end_id][1]],
+                            "score": start_logit[start_id] + end_logit[end_id],
+                        }
+                    )
+        if len(answers) > 0:
+            best_answer = max(answers, key=lambda x: x['score'])
+            predictions[example_id] = best_answer['text']
+        else:
+            predictions[example_id] = ""
+        references[example_id] = example['answers']['text']
+    return predictions, references
+
+
+def train(model):
     tokenized_datasets = preprocess_datasets(tokenizer, mrc_datasets)
-    model = get_model(ckpt_dir)
+
+    def eval_metric(pred):
+        start_logits, end_logits = pred[0]
+        if start_logits.shape[0] == len(tokenized_datasets['validation']):
+            p, r = get_result(
+                start_logits,
+                end_logits,
+                mrc_datasets['validation'],
+                tokenized_datasets['validation'],
+            )
+        else:
+            p, r = get_result(
+                start_logits,
+                end_logits,
+                mrc_datasets['test'],
+                tokenized_datasets['test'],
+            )
+        return evaluate_cmrc(p, r)
 
     args = TrainingArguments(
         output_dir=str(CHECKPOINTS_DIR),
         per_device_train_batch_size=64,
         per_device_eval_batch_size=128,
-        save_strategy="epoch",
-        eval_strategy="epoch",
+        save_strategy="steps",
+        save_steps=200,
+        eval_strategy="steps",
+        eval_steps=200,
         logging_steps=50,
         num_train_epochs=3,
         learning_rate=2e-5,
@@ -159,14 +228,15 @@ def train(ckpt_dir: Path | None = None):
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["validation"],
         data_collator=DefaultDataCollator(),
+        compute_metrics=eval_metric,
     )
     trainer.train()
 
 
-def infer(ckpt_dir: Path | None = None):
+def infer(model):
     from transformers import pipeline
 
-    pipe = pipeline('question-answering', model=get_model(ckpt_dir), tokenizer=tokenizer, device=0)
+    pipe = pipeline('question-answering', model=model, tokenizer=tokenizer, device=0)
     print(pipe(question='小明在哪里上班', context='小明在北京上班'))  # type: ignore
 
 
@@ -178,6 +248,8 @@ if __name__ == '__main__':
     tokenizer = load_tokenizer(model_id)
 
     ckpt_dir: Path | None = None
-    # ckpt_dir = CHECKPOINTS_DIR.joinpath('checkpoint-477')
-    train(ckpt_dir=ckpt_dir)
-    # infer(ckpt_dir=ckpt_dir)
+    # ckpt_dir = CHECKPOINTS_DIR.joinpath('checkpoint-600')
+    model = get_model(ckpt_dir)
+
+    train(model)
+    infer(model)

@@ -75,7 +75,7 @@ def preprocess_datasets(tokenizer, ner_datasets):
     return tokenized_datasets
 
 
-def train(ckpt_dir=None):
+def train(model):
 
     seqeval = get_evaluator()
 
@@ -103,8 +103,6 @@ def train(ckpt_dir=None):
         }
 
     tokenized_datasets = preprocess_datasets(tokenizer, ner_datasets)
-
-    model = get_model(ckpt_dir)
 
     args = TrainingArguments(
         output_dir=str(CHECKPOINTS_DIR),
@@ -134,12 +132,11 @@ def train(ckpt_dir=None):
     trainer.evaluate(eval_dataset=tokenized_datasets["test"])
 
 
-def infer(ckpt_dir=None):
+def infer(model):
     from collections import defaultdict
 
     from transformers import pipeline
 
-    model = get_model(ckpt_dir)
     model.config.id2label = {i: label for i, label in enumerate(label_list)}  # type: ignore
 
     ner_pipe = pipeline(
@@ -166,8 +163,9 @@ if __name__ == '__main__':
     model_id = 'hfl/chinese-macbert-base'
     tokenizer = load_tokenizer(model_id)
 
-    ckpt_dir = None  # 从头训练
-    ckpt_dir = CHECKPOINTS_DIR.joinpath('checkpoint-981')
+    ckpt_dir: Path | None = None
+    # ckpt_dir = CHECKPOINTS_DIR.joinpath('checkpoint-981')
+    model = get_model(ckpt_dir)
 
-    # train(ckpt_dir=ckpt_dir)
-    infer(ckpt_dir=ckpt_dir)
+    train(model)
+    infer(model)

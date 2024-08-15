@@ -1,13 +1,15 @@
 # MRC 任务介绍
 
-## 常见类型
+## MRC 常见类型
 
 - 完形填空
 - 选择题
 - 片段抽取
 - 自由生成
 
-## 片段抽取
+## MRC 任务1: 片段抽取
+
+- 本质上是二分类（这个token是不是答案）
 
 ### 数据集格式
 
@@ -49,3 +51,13 @@ F1 = (2 * 2/2 * 2/5) / (2/2 + 2/5) = 0.8 / 1.4 = 0.57
 
 - Model Structure: ModelForQuestionAnswering
 - Evaluation:
+
+### 训练参数
+
+- 1.
+  - dataset: 1221
+  - train_batch_size: 64
+  - eval_batch_size: 128
+  - max_length: 512
+  - GPU: 22 G
+  - train_elapsed: 20 min 21 sec for 3 epoch

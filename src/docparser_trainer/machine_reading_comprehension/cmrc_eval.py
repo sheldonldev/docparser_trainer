@@ -1,10 +1,15 @@
-import os
 import re
 import sys
 
-import nltk
+import nltk  # type: ignore
+from util_common.decorator import proxy
 
-tokenize = lambda x: nltk.word_tokenize(x)
+from docparser_trainer._cfg import HTTP_PROXY, HTTPS_PROXY
+
+
+@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
+def tokenize(x):
+    return nltk.word_tokenize(x)
 
 
 # split Chinese with English
@@ -52,7 +57,7 @@ def mixed_segmentation(in_str, rm_punc=False):
             continue
         if re.search(r'[\u4e00-\u9fa5]', char) or char in sp_char:
             if temp_str != "":
-                ss = nltk.word_tokenize(temp_str)
+                ss = tokenize(temp_str)
                 segs_out.extend(ss)
                 temp_str = ""
             segs_out.append(char)
@@ -61,7 +66,7 @@ def mixed_segmentation(in_str, rm_punc=False):
 
     # handling last part
     if temp_str != "":
-        ss = nltk.word_tokenize(temp_str)
+        ss = tokenize(temp_str)
         segs_out.extend(ss)
 
     return segs_out
