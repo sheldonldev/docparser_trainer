@@ -15,5 +15,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 DATA_ROOT = Path(os.environ.get('DATA_ROOT', PROJECT_ROOT / 'data'))
 
 
+HTTP_PROXY = 'http://127.0.0.1:17890'
+HTTPS_PROXY = 'http://127.0.0.1:17890'
+
+
 def setup_env():
     os.environ['PRETRAINED_ROOT'] = str(PRETRAINED_ROOT)
