@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from docparser_models._model_interface.model_manager import load_tokenizer
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score  # type: ignore
 from transformers import (  # type: ignore
     EarlyStoppingCallback,
@@ -13,6 +12,7 @@ from transformers import (  # type: ignore
 from util_common.path import move
 
 from docparser_trainer._cfg import setup_env
+from docparser_trainer._interface.model_manager import load_model, load_tokenizer
 from docparser_trainer.text_multilabel_classification.data import (
     MultiLabelTextDataset,
     class_weights,
@@ -162,14 +162,13 @@ def train():
 def torch_train(stop_thresh=0.999):
     from pathlib import Path
 
-    from docparser_models._model_interface.model_manager import get_model_dir
     from torch.utils.data import DataLoader
     from util_common.datetime import format_now
     from util_common.path import ensure_parent
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     save_path = Path(__file__).parent.joinpath('pretrained').joinpath("model.ckpt")
-    model_dir = get_model_dir(model_id)
+    model_dir = load_model(model_id)
 
     train_dataloader = DataLoader(
         train_dataset,

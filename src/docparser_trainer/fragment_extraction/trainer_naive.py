@@ -1,10 +1,3 @@
-from pathlib import Path
-
-from docparser_models._model_interface.model_manager import (
-    ensure_local_model,
-    load_local_model,
-    load_tokenizer,
-)
 from transformers import (  # type: ignore
     AutoModelForQuestionAnswering,
     DefaultDataCollator,
@@ -12,29 +5,11 @@ from transformers import (  # type: ignore
     TrainingArguments,
 )
 
-from docparser_trainer._cfg import MODEL_ROOT, PROJECT_ROOT, setup_env
-from docparser_trainer._interface.get_datasets import get_datasets
+from docparser_trainer._cfg import CKPT_ROOT, MODEL_ROOT, setup_env
+from docparser_trainer._interface.datasets_manager import get_datasets
+from docparser_trainer._interface.model_manager import load_model, load_tokenizer
 
 setup_env()
-CHECKPOINTS_DIR = PROJECT_ROOT.joinpath(
-    "checkpoints/machine_reading_comprehension/fragment_extraction"
-)
-
-
-def get_model(ckpt_dir: Path | None = None):
-    if ckpt_dir is None:
-        model_dir = ensure_local_model(
-            model_id,
-            model_cls=AutoModelForQuestionAnswering,
-            local_directory=MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction'),
-        )
-    else:
-        model_dir = ckpt_dir
-    model = load_local_model(
-        model_dir,
-        model_cls=AutoModelForQuestionAnswering,
-    )
-    return model
 
 
 def preprocess_datasets(tokenizer, datasets):
@@ -112,12 +87,11 @@ def preprocess_datasets(tokenizer, datasets):
     return tokenized_datasets
 
 
-def train(ckpt_dir: Path | None = None):
+def train(model):
     tokenized_datasets = preprocess_datasets(tokenizer, mrc_datasets)
-    model = get_model(ckpt_dir)
 
     args = TrainingArguments(
-        output_dir=str(CHECKPOINTS_DIR),
+        output_dir=str(checkpoints_dir),
         per_device_train_batch_size=64,
         per_device_eval_batch_size=128,
         save_strategy="epoch",
@@ -127,7 +101,6 @@ def train(ckpt_dir: Path | None = None):
         learning_rate=2e-5,
         weight_decay=0.01,
     )
-
     trainer = Trainer(
         model=model,
         args=args,
@@ -138,10 +111,10 @@ def train(ckpt_dir: Path | None = None):
     trainer.train()
 
 
-def infer(ckpt_dir: Path | None = None):
+def infer(model):
     from transformers import pipeline
 
-    pipe = pipeline('question-answering', model=get_model(ckpt_dir), tokenizer=tokenizer, device=0)
+    pipe = pipeline('question-answering', model=model, tokenizer=tokenizer, device=0)
     print(pipe(question='小明在哪里上班', context='小明在北京上班'))  # type: ignore
 
 
@@ -152,7 +125,16 @@ if __name__ == '__main__':
     model_id = 'hfl/chinese-macbert-base'
     tokenizer = load_tokenizer(model_id)
 
-    ckpt_dir: Path | None = None
-    ckpt_dir = CHECKPOINTS_DIR.joinpath('checkpoint-477')
-    # train(ckpt_dir=ckpt_dir)
-    infer(ckpt_dir=ckpt_dir)
+    pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction')
+    checkpoints_dir = CKPT_ROOT.joinpath("machine_reading_comprehension/fragment_extraction_slide")
+    ckpt_version: str | None = None
+    ckpt_dir = checkpoints_dir.joinpath(ckpt_version) if ckpt_version else None
+
+    model = load_model(
+        model_id,
+        ckpt_dir=ckpt_dir,
+        model_cls=AutoModelForQuestionAnswering,
+        pretrained_dir=pretrained_dir,
+    )
+    train(model)
+    infer(model)

@@ -50,7 +50,7 @@ F1 = (2 * 2/2 * 2/5) / (2/2 + 2/5) = 0.8 / 1.4 = 0.57
   - 滑动窗口(实现复杂，但是损失较小)
 
 - Model Structure: ModelForQuestionAnswering
-- Evaluation:
+- Evaluation: F1, EM
 
 ### 训练参数
 

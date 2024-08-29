@@ -1,13 +1,7 @@
 from collections import defaultdict
-from pathlib import Path
 from typing import Dict
 
 import numpy as np
-from docparser_models._model_interface.model_manager import (
-    ensure_local_model,
-    load_local_model,
-    load_tokenizer,
-)
 from transformers import (  # type: ignore
     AutoModelForQuestionAnswering,
     DefaultDataCollator,
@@ -15,30 +9,12 @@ from transformers import (  # type: ignore
     TrainingArguments,
 )
 
-from docparser_trainer._cfg import MODEL_ROOT, PROJECT_ROOT, setup_env
-from docparser_trainer._interface.get_datasets import get_datasets
+from docparser_trainer._cfg import CKPT_ROOT, MODEL_ROOT, setup_env
+from docparser_trainer._interface.datasets_manager import get_datasets
+from docparser_trainer._interface.model_manager import load_model, load_tokenizer
 from docparser_trainer.fragment_extraction.cmrc_eval import evaluate_cmrc
 
 setup_env()
-CHECKPOINTS_DIR = PROJECT_ROOT.joinpath(
-    "checkpoints/machine_reading_comprehension/fragment_extraction_slide"
-)
-
-
-def get_model(ckpt_dir: Path | None = None):
-    if ckpt_dir is None:
-        model_dir = ensure_local_model(
-            model_id,
-            model_cls=AutoModelForQuestionAnswering,
-            local_directory=MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction'),
-        )
-    else:
-        model_dir = ckpt_dir
-    model = load_local_model(
-        model_dir,
-        model_cls=AutoModelForQuestionAnswering,
-    )
-    return model
 
 
 def preprocess_datasets(tokenizer, datasets):
@@ -188,7 +164,7 @@ def get_result(start_logits, end_logits, examples, features):
 
 
 def train(model):
-    tokenized_datasets = preprocess_datasets(tokenizer, mrc_datasets)
+    tokenized_datasets = preprocess_datasets(tokenizer, datasets)
 
     def eval_metric(pred):
         start_logits, end_logits = pred[0]
@@ -196,20 +172,20 @@ def train(model):
             p, r = get_result(
                 start_logits,
                 end_logits,
-                mrc_datasets['validation'],
+                datasets['validation'],
                 tokenized_datasets['validation'],
             )
         else:
             p, r = get_result(
                 start_logits,
                 end_logits,
-                mrc_datasets['test'],
+                datasets['test'],
                 tokenized_datasets['test'],
             )
         return evaluate_cmrc(p, r)
 
     args = TrainingArguments(
-        output_dir=str(CHECKPOINTS_DIR),
+        output_dir=str(checkpoints_dir),
         per_device_train_batch_size=64,
         per_device_eval_batch_size=128,
         save_strategy="steps",
@@ -241,15 +217,23 @@ def infer(model):
 
 
 if __name__ == '__main__':
-    dataset_name = 'hfl/cmrc2018'
-    mrc_datasets = get_datasets(dataset_name)
+    datasets_name = 'hfl/cmrc2018'
+    datasets = get_datasets(datasets_name)
 
     model_id = 'hfl/chinese-macbert-base'
     tokenizer = load_tokenizer(model_id)
 
-    ckpt_dir: Path | None = None
-    # ckpt_dir = CHECKPOINTS_DIR.joinpath('checkpoint-600')
-    model = get_model(ckpt_dir)
+    pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction')
+    checkpoints_dir = CKPT_ROOT.joinpath("machine_reading_comprehension/fragment_extraction_slide")
+    ckpt_version: str | None = None
+    ckpt_dir = checkpoints_dir.joinpath(ckpt_version) if ckpt_version else None
+
+    model = load_model(
+        model_id,
+        ckpt_dir=ckpt_dir,
+        model_cls=AutoModelForQuestionAnswering,
+        pretrained_dir=pretrained_dir,
+    )
 
     train(model)
     infer(model)

@@ -1,12 +1,5 @@
-from pathlib import Path
-
 import evaluate  # type: ignore
 import numpy as np
-from docparser_models._model_interface.model_manager import (
-    ensure_local_model,
-    load_local_model,
-    load_tokenizer,
-)
 from transformers import (  # type: ignore
     AutoModelForTokenClassification,
     DataCollatorForTokenClassification,
@@ -15,35 +8,17 @@ from transformers import (  # type: ignore
 )
 from util_common.decorator import proxy
 
-from docparser_trainer._cfg import MODEL_ROOT, PROJECT_ROOT, setup_env
-from docparser_trainer._interface.get_datasets import get_datasets
+from docparser_trainer._cfg import CKPT_ROOT, MODEL_ROOT, setup_env
+from docparser_trainer._interface.datasets_manager import get_datasets
+from docparser_trainer._interface.model_manager import load_model, load_tokenizer
 
 setup_env()
-CHECKPOINTS_DIR = PROJECT_ROOT.joinpath("checkpoints/named_entity_recognition")
 
 
 @proxy(http_proxy='127.0.0.1:17890', https_proxy='127.0.0.1:17890')
 def get_evaluator():
     seqeval = evaluate.load("seqeval")
     return seqeval
-
-
-def get_model(ckpt_dir: Path | None = None):
-    if ckpt_dir is None:
-        model_dir = ensure_local_model(
-            model_id,
-            model_cls=AutoModelForTokenClassification,
-            local_directory=MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction'),
-            num_lables=len(label_list),
-        )
-    else:
-        model_dir = ckpt_dir
-    model = load_local_model(
-        model_dir,
-        model_cls=AutoModelForTokenClassification,
-        num_lables=len(label_list),
-    )
-    return model
 
 
 def preprocess_datasets(tokenizer, ner_datasets):
@@ -105,7 +80,7 @@ def train(model):
     tokenized_datasets = preprocess_datasets(tokenizer, ner_datasets)
 
     args = TrainingArguments(
-        output_dir=str(CHECKPOINTS_DIR),
+        output_dir=str(checkpoints_dir),
         per_device_train_batch_size=64,
         per_device_eval_batch_size=128,
         evaluation_strategy="epoch",
@@ -163,9 +138,17 @@ if __name__ == '__main__':
     model_id = 'hfl/chinese-macbert-base'
     tokenizer = load_tokenizer(model_id)
 
-    ckpt_dir: Path | None = None
-    # ckpt_dir = CHECKPOINTS_DIR.joinpath('checkpoint-981')
-    model = get_model(ckpt_dir)
+    pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction')
+    checkpoints_dir = CKPT_ROOT.joinpath("named_entity_recognition")
+    ckpt_version: str | None = None
+    ckpt_version = 'checkpoint-981'
+    ckpt_dir = checkpoints_dir / ckpt_version if ckpt_version else None
+    model = load_model(
+        model_id,
+        ckpt_dir=ckpt_dir,
+        model_cls=AutoModelForTokenClassification,
+        num_lables=len(label_list),
+    )
 
     train(model)
     infer(model)
