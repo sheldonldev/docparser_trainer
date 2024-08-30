@@ -1,20 +1,13 @@
-import evaluate  # type:ignore
+from pathlib import Path
+
 from datasets import load_dataset  # type:ignore
 from transformers import Trainer, TrainingArguments  # type:ignore
-from util_common.decorator import proxy
 
 from docparser_trainer._cfg import CKPT_ROOT, DATA_ROOT, MODEL_ROOT, setup_env
-from docparser_trainer._interface.model_manager import load_model, load_tokenizer
+from docparser_trainer._interface.model_manager import load_evaluator, load_model, load_tokenizer
 from docparser_trainer.text_match.models import DualModel
 
 setup_env()
-
-
-@proxy(http_proxy='127.0.0.1:17890', https_proxy='127.0.0.1:17890')
-def get_evaluator():
-    accuracy = evaluate.load("accuracy")
-    f1 = evaluate.load("f1")
-    return accuracy, f1
 
 
 def preprocess_datasets(tokenizer, datasets):
@@ -46,8 +39,9 @@ def preprocess_datasets(tokenizer, datasets):
     return tokenized_datasets
 
 
-def train(model):
-    acc_metric, f1_metric = get_evaluator()
+def train(model, tokenizer, datasets):
+    acc_metric = load_evaluator('accuracy')
+    f1_metric = load_evaluator('f1')
 
     def eval_metric(pred):
         predictions, labels = pred
@@ -83,43 +77,21 @@ def train(model):
     trainer.train()
 
 
-def infer(model):
-    from torch.nn import CosineSimilarity
-
-    class SentenceSimilarityPipeline:
-        def __init__(self, model, tokenizer):
-            self.model = model.bert  # 只拿向量表示
-            self.tokenizer = tokenizer
-            self.device = model.device
-
-        def preprocess(self, senA, senB):
-            return tokenizer(
-                [senA, senB],
-                max_length=128,
-                truncation=True,
-                padding=True,
-                return_tensors='pt',
-            )
-
-        def predict(self, inputs):
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            return self.model(**inputs)[1]  # 2, 768
-
-        def postprocess(self, logits):
-            cos = CosineSimilarity()(logits[None, 0, :], logits[None, 1, :]).squeeze().cpu().item()
-            return cos
-
-        def __call__(self, senA, senB, return_vector=False):
-            inputs = self.preprocess(senA, senB)
-            logits = self.predict(inputs)
-            result = self.postprocess(logits)
-            if return_vector is True:
-                return result, logits.cpu().detach().numpy()
-            return result
-
-    pipe = SentenceSimilarityPipeline(model, tokenizer)
-
-    print(pipe("我喜欢北京", "北京是我喜欢的城市", return_vector=True))
+def main(
+    datasets,
+    model_id,
+    pretrained_dir,
+    checkpoints_dir,
+    ckpt_version=None,
+):
+    tokenizer = load_tokenizer(model_id)
+    model = load_model(
+        model_id,
+        ckpt_dir=Path(checkpoints_dir) / ckpt_version if ckpt_version else None,
+        model_cls=DualModel,
+        pretrained_dir=pretrained_dir,
+    )
+    train(model, tokenizer, datasets)
 
 
 if __name__ == '__main__':
@@ -132,20 +104,14 @@ if __name__ == '__main__':
     datasets = dataset.train_test_split(test_size=0.1)  # type: ignore
 
     model_id = 'hfl/chinese-macbert-base'
-    tokenizer = load_tokenizer(model_id)
-
     pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-text-match-dual')
     checkpoints_dir = CKPT_ROOT.joinpath('text_match/text_similarity_dual')
-    ckpt_version: str | None = None
     ckpt_version = 'checkpoint-282'
-    ckpt_dir = checkpoints_dir / ckpt_version if ckpt_version else None
 
-    model = load_model(
+    main(
+        datasets,
         model_id,
-        ckpt_dir=ckpt_dir,
-        model_cls=DualModel,
-        pretrained_dir=pretrained_dir,
+        pretrained_dir,
+        checkpoints_dir,
+        ckpt_version=ckpt_version,
     )
-
-    train(model)
-    infer(model)

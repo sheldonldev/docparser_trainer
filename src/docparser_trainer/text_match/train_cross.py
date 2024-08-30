@@ -1,26 +1,17 @@
 from pathlib import Path
 
-import evaluate  # type:ignore
-from datasets import load_dataset  # type:ignore
 from transformers import (  # type:ignore
     AutoModelForSequenceClassification,
     DataCollatorWithPadding,
     Trainer,
     TrainingArguments,
 )
-from util_common.decorator import proxy
 
 from docparser_trainer._cfg import CKPT_ROOT, DATA_ROOT, MODEL_ROOT, setup_env
-from docparser_trainer._interface.model_manager import load_model, load_tokenizer
+from docparser_trainer._interface.datasets_manager import get_datasets
+from docparser_trainer._interface.model_manager import load_evaluator, load_model, load_tokenizer
 
 setup_env()
-
-
-@proxy(http_proxy='127.0.0.1:17890', https_proxy='127.0.0.1:17890')
-def get_evaluator():
-    accuracy = evaluate.load("accuracy")
-    f1 = evaluate.load("f1")
-    return accuracy, f1
 
 
 def preprocess_datasets(tokenizer, datasets):
@@ -44,8 +35,9 @@ def preprocess_datasets(tokenizer, datasets):
     return tokenized_datasets
 
 
-def train(model):
-    acc_metric, f1_metric = get_evaluator()
+def train(model, tokenizer, datasets, checkpoints_dir):
+    acc_metric = load_evaluator("accuracy")
+    f1_metric = load_evaluator("f1")
 
     def eval_metric(pred):
         predictions, labels = pred
@@ -82,21 +74,27 @@ def train(model):
     trainer.train()
 
 
-def infer(model):
-    from transformers import pipeline
-
-    # model.config.id2label = {0: 'not_match', 1: 'match'}
-    pipe = pipeline(
-        'text-classification',
-        model=model,
-        tokenizer=tokenizer,
-        device=model.device,
+def main(
+    datasets,
+    model_id,
+    pretrained_dir,
+    checkpoints_dir,
+    ckpt_version=None,
+):
+    tokenizer = load_tokenizer(model_id)
+    model = load_model(
+        model_id,
+        ckpt_dir=Path(checkpoints_dir) / ckpt_version if ckpt_version else None,
+        model_cls=AutoModelForSequenceClassification,
+        pretrained_dir=pretrained_dir,
+        num_labels=1,
     )
-    pipe({"text": "我喜欢北京", "text_pair": "北京是我喜欢的城市"}, function_to_apply="none")
+
+    train(model, tokenizer, datasets, checkpoints_dir)
 
 
 if __name__ == '__main__':
-    dataset = load_dataset(
+    dataset = get_datasets(
         'json',
         data_files=str(DATA_ROOT.joinpath('CLUEbenchmark/simclue_public/train_pair.json')),
         split='train',
@@ -105,19 +103,12 @@ if __name__ == '__main__':
     datasets = dataset.train_test_split(test_size=0.1)  # type: ignore
 
     model_id = 'hfl/chinese-macbert-base'
-    tokenizer = load_tokenizer(model_id)
-
     pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-text-match')
     checkpoints_dir = CKPT_ROOT.joinpath('text_match/text_similarity_cross')
-    ckpt_version: str | None = None
-    ckpt_dir: Path | None = checkpoints_dir / ckpt_version if ckpt_version else None
-    model = load_model(
-        model_id,
-        ckpt_dir=ckpt_dir,
-        model_cls=AutoModelForSequenceClassification,
-        pretrained_dir=pretrained_dir,
-        num_labels=1,
-    )
 
-    train(model)
-    infer(model)
+    main(
+        datasets,
+        model_id,
+        pretrained_dir,
+        checkpoints_dir,
+    )

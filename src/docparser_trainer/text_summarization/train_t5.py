@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 from rouge_chinese import Rouge  # type: ignore
 from transformers import (  # type: ignore
@@ -29,7 +31,7 @@ def preprocess_datasets(tokenizer: T5Tokenizer, datasets):
     return tokenized
 
 
-def train(model):
+def train(model, tokenizer, datasets, checkpoints_dir):
     rouge = Rouge()
 
     def eval_metrics(pred):
@@ -48,6 +50,7 @@ def train(model):
             'rouge-L': scores['rouge-l']['f'],  # type: ignore
         }
 
+    tokenized_datasets = preprocess_datasets(tokenizer, datasets)
     args = Seq2SeqTrainingArguments(
         output_dir=str(checkpoints_dir),
         per_device_train_batch_size=4,
@@ -66,8 +69,8 @@ def train(model):
     trainer = Seq2SeqTrainer(
         model=model,
         args=args,
-        train_dataset=tokenized_ds['train'],
-        eval_dataset=tokenized_ds['test'],
+        train_dataset=tokenized_datasets['train'],
+        eval_dataset=tokenized_datasets['test'],
         tokenizer=tokenizer,
         compute_metrics=eval_metrics,
         data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer),
@@ -75,35 +78,37 @@ def train(model):
     trainer.train()
 
 
-def infer(model):
-    from transformers import pipeline
+def main(
+    datasets,
+    model_id,
+    pretrained_dir,
+    checkpoints_dir,
+    ckpt_version=None,
+):
+    tokenizer = load_tokenizer(model_id, tokenizer_cls=T5Tokenizer)
+    model = load_model(
+        model_id,
+        ckpt_dir=Path(checkpoints_dir) / ckpt_version if ckpt_version else None,
+        model_cls=T5ForConditionalGeneration,
+        pretrained_dir=pretrained_dir,
+    )
 
-    pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer, device=0)
-    pipe("摘要生成:\n" + ds['test'][-1]['data']['content'], max_len=64, do_sample=True)
+    train(model, tokenizer, datasets, checkpoints_dir)
 
 
 if __name__ == '__main__':
     datasets_name = 'supremezxc/nlpcc_2017'
     ds = get_datasets(datasets_name)
-
     ds = ds['train'].select(range(10000)).select_columns(['data'])  # type: ignore
     datasets = ds.train_test_split(test_size=0.1, seed=42)  # type: ignore
 
     model_id = 'Langboat/mengzi-t5-base'
-    tokenizer = load_tokenizer(model_id, tokenizer_cls=T5Tokenizer)
-
-    tokenized_ds = preprocess_datasets(tokenizer, datasets)
-
     pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-text-summarization')
     checkpoints_dir = CKPT_ROOT.joinpath('text_summarization/t5')
-    ckpt_version: str | None = None
-    ckpt_version = 'checkpoint-843'
-    ckpt_dir = checkpoints_dir / ckpt_version if ckpt_version else None
-    model = load_model(
-        model_id,
-        ckpt_dir=ckpt_dir,
-        model_cls=T5ForConditionalGeneration,
-        pretrained_dir=pretrained_dir,
-    )
 
-    train(model)
+    main(
+        datasets,
+        model_id,
+        pretrained_dir,
+        checkpoints_dir,
+    )

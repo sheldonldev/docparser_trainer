@@ -3,8 +3,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Type
 
+import evaluate  # type: ignore
 from transformers import AutoModel, AutoTokenizer  # type: ignore
 from util_common.decorator import proxy
+
+from docparser_trainer._cfg import HTTP_PROXY, HTTPS_PROXY
 
 
 def get_pretrained_folder() -> Path | None:
@@ -31,7 +34,7 @@ def load_local_model(model_dir, model_cls: Type = AutoModel, **kwargs):
     return model
 
 
-@proxy(http_proxy='http://127.0.0.1:17890', https_proxy='http://127.0.0.1:17890')
+@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
 def load_remote_model(model_id, model_cls: Type = AutoModel, **kwargs):
     model = model_cls.from_pretrained(
         model_id, trust_remote_code=True, low_cpu_mem_usage=True, **kwargs
@@ -44,7 +47,7 @@ def load_local_tokenizer(model_dir, tokenizer_cls: Type = AutoTokenizer):
     return tokenizer
 
 
-@proxy(http_proxy='http://127.0.0.1:17890', https_proxy='http://127.0.0.1:17890')
+@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
 def load_remote_tokenizer(model_id, tokenizer_cls: Type = AutoTokenizer):
     tokenizer = tokenizer_cls.from_pretrained(model_id, trust_remote_code=True)
     return tokenizer
@@ -90,6 +93,8 @@ def load_model(
     model_cls: model structure class
     ckpt_dir: if model is finetuned and saved, pass ckpt_dir to load from ckpt_dir
     pretrained_dir: if model is not finetuned, load from pretrained_dir or model_id
+
+    ckpt_dir, pretrained_dir, model_id, at least one is not None.
     """
     if ckpt_dir is None:
         if pretrained_dir is None and model_id is None:
@@ -102,3 +107,9 @@ def load_model(
         model_dir = ckpt_dir
     model = load_local_model(model_dir, model_cls=model_cls, **kwargs)
     return model
+
+
+@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
+def load_evaluator(name):
+    seqeval = evaluate.load(name)
+    return seqeval

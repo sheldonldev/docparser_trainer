@@ -1,5 +1,5 @@
 from docparser_trainer._cfg import CKPT_ROOT, setup_env
-from docparser_trainer._interface.datasets_manager import load_dataset
+from docparser_trainer._interface.datasets_manager import get_datasets
 from docparser_trainer._interface.model_manager import load_model, load_tokenizer
 
 setup_env()

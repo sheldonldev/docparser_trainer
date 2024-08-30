@@ -1,8 +1,5 @@
 from pathlib import Path
 
-import torch
-from rouge_chinese import Rouge  # type: ignore
-from tqdm import tqdm
 from transformers import (  # type: ignore
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
@@ -12,31 +9,9 @@ from transformers import (  # type: ignore
 
 from docparser_trainer._cfg import CKPT_ROOT, MODEL_ROOT, setup_env
 from docparser_trainer._interface.datasets_manager import get_datasets
-from docparser_trainer._interface.model_manager import (
-    ensure_local_model,
-    load_local_model,
-    load_tokenizer,
-)
+from docparser_trainer._interface.model_manager import load_model, load_tokenizer
 
 setup_env()
-CHECKPOINTS_DIR = CKPT_ROOT.joinpath('text_summarization/glm')
-
-
-def get_model(ckpt_dir: Path | None = None):
-    model_cls = AutoModelForSeq2SeqLM
-    if ckpt_dir is None:
-        model_dir = ensure_local_model(
-            model_id,
-            model_cls=model_cls,
-            local_directory=MODEL_ROOT.joinpath(f'{model_id}-text-summarization'),
-        )
-    else:
-        model_dir = ckpt_dir
-    model = load_local_model(
-        model_dir,
-        model_cls=model_cls,
-    )
-    return model
 
 
 def preprocess_datasets(tokenizer, datasets):
@@ -59,12 +34,13 @@ def preprocess_datasets(tokenizer, datasets):
     return tokenized
 
 
-def train(model):
+def train(model, tokenizer, datasets, checkpoints_dir):
 
     # 用 glm 的官方评估函数 训练完了评估一次
 
+    tokenized_datasets = preprocess_datasets(tokenizer, datasets)
     args = Seq2SeqTrainingArguments(
-        output_dir=str(CHECKPOINTS_DIR),
+        output_dir=str(checkpoints_dir),
         per_device_train_batch_size=4,
         gradient_accumulation_steps=64,
         logging_steps=8,
@@ -77,71 +53,44 @@ def train(model):
     trainer = Seq2SeqTrainer(
         model=model,
         args=args,
-        train_dataset=tokenized_ds['train'],
+        train_dataset=tokenized_datasets['train'],
         tokenizer=tokenizer,
     )
     trainer.train()
 
 
-def predict(model, texts):
-    predicts = []
-    with torch.no_grad():
-        for text in tqdm(texts):
-            inputs = tokenizer(
-                "摘要生成:\n" + text + tokenizer.mask_token,
-                return_tensors="pt",
-                max_length=512,
-                truncation=True,
-            )
-            inputs = tokenizer.build_inputs_for_generation(inputs, max_gen_length=64)
-            inputs = inputs.to(model.device)
-            output = model.generate(
-                **inputs, max_new_tokens=64, eos_token_id=tokenizer.eop_token_id, do_sample=True
-            )
+def main(
+    datasets,
+    model_id,
+    pretrained_dir,
+    checkpoints_dir,
+    ckpt_version=None,
+):
 
-            predicts.append(
-                tokenizer.decode(output[0].tolist())
-                .split("<|startofpiece|>")[1]
-                .replace("<|endofpiece|>", "")
-                .strip()
-            )
-    return predicts
-
-
-def evaluate(model):
-
-    rouge = Rouge()
-    model.cuda()
-    model.eval()
-
-    inputs = [x['content'] for x in datasets['test']['data']]
-    predicts = predict(model, inputs)
-    decoded_preds = [' '.join(x) for x in predicts]
-    decoded_labels = [' '.join(x['title']) for x in datasets['test']['data']]
-    scores = rouge.get_scores(decoded_preds, decoded_labels, avg=True)
-
-    return {
-        'rouge-1': scores['rouge-1']['f'],  # type: ignore
-        'rouge-2': scores['rouge-2']['f'],  # type: ignore
-        'rouge-L': scores['rouge-l']['f'],  # type: ignore
-    }
+    tokenizer = load_tokenizer(model_id, tokenizer_cls=AutoTokenizer)
+    model = load_model(
+        model_id,
+        ckpt_dir=Path(checkpoints_dir) / ckpt_version if ckpt_version else None,
+        model_cls=AutoModelForSeq2SeqLM,
+        pretrained_dir=pretrained_dir,
+        num_labels=1,
+    )
+    train(model, tokenizer, datasets, checkpoints_dir)
 
 
 if __name__ == '__main__':
-    datasets_name = 'supremezxc/nlpcc_2017'
-    ds = get_datasets(datasets_name)
-
+    datasets_id = 'supremezxc/nlpcc_2017'
+    ds = get_datasets(datasets_id)
     ds = ds['train'].select(range(10000)).select_columns(['data'])  # type: ignore
     datasets = ds.train_test_split(test_size=0.1, seed=42)  # type: ignore
 
     model_id = 'THUDM/glm-large-chinese'
-    tokenizer = load_tokenizer(model_id, tokenizer_cls=AutoTokenizer)
+    pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-text-summarization')
+    checkpoints_dir = CKPT_ROOT.joinpath('text_summarization/glm')
 
-    tokenized_ds = preprocess_datasets(tokenizer, datasets)
-
-    ckpt_dir: Path | None = None
-    ckpt_dir = CHECKPOINTS_DIR.joinpath('checkpoint-35')
-    model = get_model(ckpt_dir)
-
-    # train(model)
-    print(evaluate(model))
+    main(
+        datasets,
+        model_id,
+        pretrained_dir,
+        checkpoints_dir,
+    )

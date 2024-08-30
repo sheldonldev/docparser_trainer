@@ -1,22 +1,13 @@
 from pathlib import Path
 
-import evaluate  # type:ignore
 import numpy as np
-import torch
 from transformers import AutoModelForMultipleChoice, Trainer, TrainingArguments  # type:ignore
-from util_common.decorator import proxy
 
 from docparser_trainer._cfg import CKPT_ROOT, MODEL_ROOT, setup_env
 from docparser_trainer._interface.datasets_manager import get_datasets
-from docparser_trainer._interface.model_manager import load_model, load_tokenizer
+from docparser_trainer._interface.model_manager import load_evaluator, load_model, load_tokenizer
 
 setup_env()
-
-
-@proxy(http_proxy='127.0.0.1:17890', https_proxy='127.0.0.1:17890')
-def get_evaluator():
-    accuracy = evaluate.load("accuracy")
-    return accuracy
 
 
 def preprocess_datasets(tokenizer, datasets):
@@ -62,9 +53,8 @@ def preprocess_datasets(tokenizer, datasets):
     return tokenized_datasets
 
 
-def train(model):
-
-    accuracy = get_evaluator()
+def train(model, tokenizer, datasets, checkpoints_dir):
+    accuracy = load_evaluator("accuracy")
 
     def eval_metric(pred):
         predictions, labels = pred
@@ -86,7 +76,6 @@ def train(model):
         weight_decay=0.01,
         fp16=True,  # 可能会提速
     )
-
     trainer = Trainer(
         model=model,
         args=args,
@@ -98,65 +87,37 @@ def train(model):
     trainer.train()
 
 
-def infer(model):
-    class MultipleChoicePipeline:
-        def __init__(self, model, tokenizer):
-            self.model = model
-            self.tokenizer = tokenizer
-            self.device = model.device
+def main(
+    datasets,
+    model_id,
+    pretrained_dir,
+    checkpoints_dir,
+    ckpt_version=None,
+):
 
-        def preprocess(self, context, question, choices):
-            cs, qcs = [], []
-            for choice in choices:
-                cs.append(context)
-                qcs.append(question + ' ' + choice)
-            return tokenizer(
-                cs,
-                qcs,
-                max_length=256,
-                truncation="only_first",
-                return_tensors='pt',  # 返回 pytorch 的张量
-            )
-
-        def predict(self, inputs):
-            inputs = {k: v.unsqueeze(0).to(self.device) for k, v in inputs.items()}
-            return self.model(**inputs).logits
-
-        def postprocess(self, logits, choices):
-            pred = torch.argmax(logits, dim=-1).cpu().item()
-            return choices[pred]
-
-        def __call__(self, context, question, choices):
-            inputs = self.preprocess(context, question, choices)
-            logits = self.predict(inputs)
-            result = self.postprocess(logits, choices)
-            return result
-
-    pipe = MultipleChoicePipeline(model, tokenizer)
-    print(
-        pipe('小明在北京上班', '小明在哪里上班', ['北京', '上海'])
-    )  # 预测的时候没有 batch 的概念，不需要 padding 也不限制于选项数量
+    tokenizer = load_tokenizer(model_id)
+    model = load_model(
+        model_id,
+        model_cls=AutoModelForMultipleChoice,
+        ckpt_dir=Path(checkpoints_dir) / ckpt_version if ckpt_version else None,
+        pretrained_dir=pretrained_dir,
+    )
+    train(model, tokenizer, datasets, checkpoints_dir)
 
 
 if __name__ == '__main__':
-    datasets_name = 'clue/clue'
-    datasets = get_datasets(datasets_name, 'c3')
+    datasets_id = 'clue/clue'
+    sub_datasets_name = 'c3'
+    datasets = get_datasets(datasets_id, sub_name=sub_datasets_name)
     datasets.pop('test')
 
     model_id = 'hfl/chinese-macbert-base'
-    tokenizer = load_tokenizer(model_id)
-
     pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-mrc-multiple-choices')
     checkpoints_dir = CKPT_ROOT.joinpath('machine_reading_comprehension/multi_choice')
-    ckpt_version: str | None = None
-    ckpt_dir: Path | None = checkpoints_dir / ckpt_version if ckpt_version else None
 
-    model = load_model(
+    main(
+        datasets,
         model_id,
-        ckpt_dir=ckpt_dir,
-        model_cls=AutoModelForMultipleChoice,
-        pretrained_dir=pretrained_dir,
+        pretrained_dir,
+        checkpoints_dir,
     )
-
-    train(model)
-    infer(model)

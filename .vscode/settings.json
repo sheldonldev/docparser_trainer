@@ -65,7 +65,8 @@
         "peft",
         "preds",
         "Reparameterization",
-        "seqeval"
+        "seqeval",
+        "unsqueeze"
     ],
     "git.ignoreLimitWarning": true,
     "[python]": {

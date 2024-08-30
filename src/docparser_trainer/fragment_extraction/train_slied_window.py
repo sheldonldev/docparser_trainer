@@ -1,4 +1,5 @@
 from collections import defaultdict
+from pathlib import Path
 from typing import Dict
 
 import numpy as np
@@ -163,8 +164,7 @@ def get_result(start_logits, end_logits, examples, features):
     return predictions, references
 
 
-def train(model):
-    tokenized_datasets = preprocess_datasets(tokenizer, datasets)
+def train(model, tokenizer, datasets, checkpoints_dir):
 
     def eval_metric(pred):
         start_logits, end_logits = pred[0]
@@ -183,6 +183,8 @@ def train(model):
                 tokenized_datasets['test'],
             )
         return evaluate_cmrc(p, r)
+
+    tokenized_datasets = preprocess_datasets(tokenizer, datasets)
 
     args = TrainingArguments(
         output_dir=str(checkpoints_dir),
@@ -209,11 +211,15 @@ def train(model):
     trainer.train()
 
 
-def infer(model):
-    from transformers import pipeline
-
-    pipe = pipeline('question-answering', model=model, tokenizer=tokenizer, device=0)
-    print(pipe(question='小明在哪里上班', context='小明在北京上班'))  # type: ignore
+def main(datasets, model_id, pretrained_dir, checkpoints_dir, ckpt_version=None):
+    tokenizer = load_tokenizer(model_id)
+    model = load_model(
+        model_id,
+        ckpt_dir=Path(checkpoints_dir) / ckpt_version if ckpt_version else None,
+        model_cls=AutoModelForQuestionAnswering,
+        pretrained_dir=pretrained_dir,
+    )
+    train(model, tokenizer, datasets, checkpoints_dir)
 
 
 if __name__ == '__main__':
@@ -221,19 +227,14 @@ if __name__ == '__main__':
     datasets = get_datasets(datasets_name)
 
     model_id = 'hfl/chinese-macbert-base'
-    tokenizer = load_tokenizer(model_id)
-
     pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction')
     checkpoints_dir = CKPT_ROOT.joinpath("machine_reading_comprehension/fragment_extraction_slide")
     ckpt_version: str | None = None
-    ckpt_dir = checkpoints_dir.joinpath(ckpt_version) if ckpt_version else None
 
-    model = load_model(
+    main(
+        datasets,
         model_id,
-        ckpt_dir=ckpt_dir,
-        model_cls=AutoModelForQuestionAnswering,
-        pretrained_dir=pretrained_dir,
+        pretrained_dir,
+        checkpoints_dir,
+        ckpt_version=ckpt_version,
     )
-
-    train(model)
-    infer(model)

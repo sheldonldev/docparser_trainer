@@ -1,4 +1,5 @@
-import evaluate  # type: ignore
+from pathlib import Path
+
 import numpy as np
 from transformers import (  # type: ignore
     AutoModelForTokenClassification,
@@ -6,19 +7,12 @@ from transformers import (  # type: ignore
     Trainer,
     TrainingArguments,
 )
-from util_common.decorator import proxy
 
 from docparser_trainer._cfg import CKPT_ROOT, MODEL_ROOT, setup_env
 from docparser_trainer._interface.datasets_manager import get_datasets
-from docparser_trainer._interface.model_manager import load_model, load_tokenizer
+from docparser_trainer._interface.model_manager import load_evaluator, load_model, load_tokenizer
 
 setup_env()
-
-
-@proxy(http_proxy='127.0.0.1:17890', https_proxy='127.0.0.1:17890')
-def get_evaluator():
-    seqeval = evaluate.load("seqeval")
-    return seqeval
 
 
 def preprocess_datasets(tokenizer, ner_datasets):
@@ -50,9 +44,8 @@ def preprocess_datasets(tokenizer, ner_datasets):
     return tokenized_datasets
 
 
-def train(model):
-
-    seqeval = get_evaluator()
+def train(model, tokenizer, datasets, label_list, checkpoints_dir):
+    seqeval = load_evaluator("seqeval")
 
     def eval_metric(pred):
         predictions, labels = pred.predictions, pred.label_ids
@@ -77,7 +70,7 @@ def train(model):
             "f1": result["overall_f1"],  # type: ignore
         }
 
-    tokenized_datasets = preprocess_datasets(tokenizer, ner_datasets)
+    tokenized_datasets = preprocess_datasets(tokenizer, datasets)
 
     args = TrainingArguments(
         output_dir=str(checkpoints_dir),
@@ -107,48 +100,40 @@ def train(model):
     trainer.evaluate(eval_dataset=tokenized_datasets["test"])
 
 
-def infer(model):
-    from collections import defaultdict
+def main(
+    datasets,
+    label_list,
+    model_id,
+    pretrained_dir,
+    checkpoints_dir,
+    ckpt_version=None,
+):
 
-    from transformers import pipeline
-
-    model.config.id2label = {i: label for i, label in enumerate(label_list)}  # type: ignore
-
-    ner_pipe = pipeline(
-        "token-classification",
-        model=model,
-        tokenizer=tokenizer,
-        device=0,
-    )
-    input = "小明在北京上班"
-    res = ner_pipe(input, aggregation_strategy="simple")
-
-    ner_res = defaultdict(list)
-    for r in res:  # type: ignore
-        ner_res[r["entity_group"]].append(input[r["start"] : r["end"]])  # type: ignore
-    print(ner_res)
-
-
-if __name__ == '__main__':
-
-    datasets_name = 'peoples-daily-ner/peoples_daily_ner'  # 人民日报
-    ner_datasets = get_datasets(datasets_name)
-    label_list = ner_datasets["train"].features["ner_tags"].feature.names  # type: ignore
-
-    model_id = 'hfl/chinese-macbert-base'
     tokenizer = load_tokenizer(model_id)
-
-    pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction')
-    checkpoints_dir = CKPT_ROOT.joinpath("named_entity_recognition")
-    ckpt_version: str | None = None
-    ckpt_version = 'checkpoint-981'
-    ckpt_dir = checkpoints_dir / ckpt_version if ckpt_version else None
     model = load_model(
         model_id,
-        ckpt_dir=ckpt_dir,
+        ckpt_dir=Path(checkpoints_dir) / ckpt_version if ckpt_version else None,
+        pretrained_dir=pretrained_dir,
         model_cls=AutoModelForTokenClassification,
         num_lables=len(label_list),
     )
 
-    train(model)
-    infer(model)
+    train(model, tokenizer, datasets, label_list, checkpoints_dir)
+
+
+if __name__ == '__main__':
+    datasets_id = 'peoples-daily-ner/peoples_daily_ner'  # 人民日报
+    datasets = get_datasets(datasets_id)
+    label_list = datasets["train"].features["ner_tags"].feature.names  # type: ignore
+
+    model_id = 'hfl/chinese-macbert-base'
+    pretrained_dir = MODEL_ROOT.joinpath(f'{model_id}-mrc-fragment-extraction')
+    checkpoints_dir = CKPT_ROOT.joinpath("named_entity_recognition")
+
+    main(
+        datasets,
+        label_list,
+        model_id,
+        pretrained_dir,
+        checkpoints_dir,
+    )
