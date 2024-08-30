@@ -17,7 +17,7 @@ def get_model():
     )
 
 
-def customized_target_modules():
+def customize_target_modules():
     net = get_model()
     print(net)
     config = LoraConfig(target_modules=['0'])
@@ -126,5 +126,5 @@ def shift_or_band_adapters():
 
 
 if __name__ == '__main__':
-    # customized_target_modules()
+    # customize_target_modules()
     shift_or_band_adapters()
