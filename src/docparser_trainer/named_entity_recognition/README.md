@@ -47,3 +47,9 @@ F1 = 2 * Precision * Recall / (Precision + Recall) = 2 * 0.5 * 0.333 / (0.5 + 0.
 
 - Model Structure: BertForTokenClassification
 - Evaluation: seqeval
+
+## Transformers 自动调参
+
+- 安装一个自动调参的后台 optuna
+- TrainingArgs model_init 传参
+- 用 trainer.hyperparameters_search() 训练
