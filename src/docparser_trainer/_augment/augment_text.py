@@ -1,9 +1,10 @@
 import random
+from pathlib import Path
 
 import jieba  # type: ignore
 
 same_dict = {}
-with open("data/synonym.txt", "r") as r:
+with open(Path(__file__).parent.joinpath("data/synonym.txt"), "r") as r:
     lines = r.readlines()
     print("loading same words...")
     for line in lines:
@@ -78,6 +79,7 @@ def random_change_same_word(sentence, prob):
     return sentence
 
 
+# TODO:
 # # 随机回译
 # @proxy(http_proxy='http://127.0.0.1:17890', https_proxy='https://127.0.0.1:17890')
 # def random_googletrans(sentence, prob):
@@ -94,51 +96,6 @@ def random_change_same_word(sentence, prob):
 #         s = translator.translate(text=eng, dest=t_from, src=t_to)
 #         return s.text
 
-
-# # 有道随机回译
-# def back_translate(
-#     text: str,
-#     prob: float,
-#     keywords: List[str] = None,
-#     handle_func: Callable[[Dict[str, str]], Any] = lambda x: x,
-# ) -> Any:
-#     if random.random() > prob:
-#         return text
-#     else:
-#         schemas = {"youdao": [["zh-CN", "en", "zh-CN"]]}
-#         res = {"origin": text}
-#         for platform, schema_list in schemas.items():
-#             trans_func = __import__(f"{platform}.main", fromlist=platform).back_translate
-#             for schema in schema_list:
-#                 try:
-#                     schema_key = "->".join(schema)
-#                     res[f"{platform}    {schema_key}"] = trans_func(text, lang_list=schema)
-#                 except Exception:
-#                     pass
-
-#                 if keywords:  # 使用keyword mask
-#                     keywords = list(set(keywords))  # 过滤重复keywords
-#                     hit_keywords = [keyword for keyword in keywords if keyword in text]
-#                     for selected_keyword in hit_keywords:
-#                         try:
-#                             replaced_text = text.replace(selected_keyword, "UNK")
-#                             back_translate_res = trans_func(replaced_text, lang_list=schema)
-#                             if "UNK" in back_translate_res or "unk" in back_translate_res:
-#                                 back_translate_res = back_translate_res.replace(
-#                                     "UNK", selected_keyword
-#                                 )
-#                                 back_translate_res = back_translate_res.replace(
-#                                     "unk", selected_keyword
-#                                 )
-#                                 res[f"{platform}    {schema_key}    kw_mask{selected_keyword}"]=(
-#                                     back_translate_res
-#                                 )
-#                         except Exception:
-#                             pass
-
-#         return res['youdao    zh-CN->en->zh-CN']
-
-# TODO: 随机回译
 
 func_list = [
     random_delete_word,

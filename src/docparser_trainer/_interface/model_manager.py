@@ -4,7 +4,12 @@ from pathlib import Path
 from typing import Type
 
 import evaluate  # type: ignore
-from transformers import AutoModel, AutoTokenizer  # type: ignore
+from transformers import (  # type: ignore
+    AutoModel,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+)
 from util_common.decorator import proxy
 
 from docparser_trainer._cfg import HTTP_PROXY, HTTPS_PROXY
@@ -27,48 +32,26 @@ def get_pretrained_model_folder(model_name) -> Path:
     return pretrained_folder.joinpath(f'models/{model_name}')
 
 
-def load_local_model(model_dir, model_cls: Type = AutoModel, **kwargs):
+def load_local_model(
+    model_dir,
+    model_cls: Type = AutoModel,
+    **kwargs,
+) -> PreTrainedModel:
     model = model_cls.from_pretrained(
-        str(model_dir), trust_remote_code=True, low_cpu_mem_usage=True, **kwargs
+        str(model_dir),
+        trust_remote_code=True,
+        low_cpu_mem_usage=True,
+        **kwargs,
     )
     return model
 
 
-@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
-def load_remote_model(model_id, model_cls: Type = AutoModel, **kwargs):
-    model = model_cls.from_pretrained(
-        model_id, trust_remote_code=True, low_cpu_mem_usage=True, **kwargs
-    )
-    return model
-
-
-def load_local_tokenizer(model_dir, tokenizer_cls: Type = AutoTokenizer):
-    tokenizer = tokenizer_cls.from_pretrained(str(model_dir), trust_remote_code=True)
-    return tokenizer
-
-
-@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
-def load_remote_tokenizer(model_id, tokenizer_cls: Type = AutoTokenizer):
-    tokenizer = tokenizer_cls.from_pretrained(model_id, trust_remote_code=True)
-    return tokenizer
-
-
-def load_tokenizer(model_id, tokenizer_cls: Type = AutoTokenizer):
-    local_directory = get_pretrained_model_folder(model_id)
-    try:
-        tokenizer = load_local_tokenizer(local_directory, tokenizer_cls=tokenizer_cls)
-    except Exception:
-        tokenizer = load_remote_tokenizer(model_id, tokenizer_cls=tokenizer_cls)
-        tokenizer.save_pretrained(str(local_directory))  # type: ignore
-    return tokenizer
-
-
-def ensure_local_model(
+def load_base_model(
     model_id,
     model_cls: Type = AutoModel,
     local_directory: Path | None = None,
     **kwargs,
-) -> Path:
+) -> PreTrainedModel:
     if local_directory is None:
         local_directory = get_pretrained_model_folder(model_id)
     try:
@@ -76,16 +59,16 @@ def ensure_local_model(
     except Exception:
         model = load_remote_model(model_id, model_cls=model_cls, **kwargs)
         model.save_pretrained(str(local_directory))  # type: ignore
-    return local_directory
+    return model
 
 
 def load_model(
     model_id: str | None = None,
-    model_cls: Type = AutoModel,
-    ckpt_dir: Path | None = None,
     pretrained_dir: Path | None = None,
+    ckpt_dir: Path | None = None,
+    model_cls: Type = AutoModel,
     **kwargs,
-):
+) -> PreTrainedModel:
     """
     model_id: hugginginge model id, if pretrained_dir not exist,
         will download from huggingface and save to pretrained_dir (
@@ -99,17 +82,61 @@ def load_model(
     if ckpt_dir is None:
         if pretrained_dir is None and model_id is None:
             raise ValueError("model_id or pretrained_dir must be provided")
-
-        model_dir = ensure_local_model(
-            model_id, model_cls=model_cls, local_directory=pretrained_dir, **kwargs
+        model = load_base_model(
+            model_id,
+            model_cls=model_cls,
+            local_directory=pretrained_dir,
+            **kwargs,
         )
     else:
-        model_dir = ckpt_dir
-    model = load_local_model(model_dir, model_cls=model_cls, **kwargs)
+        model = load_local_model(
+            ckpt_dir,
+            model_cls=model_cls,
+            **kwargs,
+        )
     return model
 
 
 @proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
+def load_remote_model(
+    model_id,
+    model_cls: Type = AutoModel,
+    **kwargs,
+) -> PreTrainedModel:
+    model = model_cls.from_pretrained(
+        model_id,
+        trust_remote_code=True,
+        low_cpu_mem_usage=True,
+        **kwargs,
+    )
+    return model
+
+
+def load_local_tokenizer(
+    model_dir, tokenizer_cls: Type = AutoTokenizer, **kwargs
+) -> PreTrainedTokenizer:
+    tokenizer = tokenizer_cls.from_pretrained(str(model_dir), trust_remote_code=True, **kwargs)
+    return tokenizer
+
+
+@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
+def load_remote_tokenizer(
+    model_id, tokenizer_cls: Type = AutoTokenizer, **kwargs
+) -> PreTrainedTokenizer:
+    tokenizer = tokenizer_cls.from_pretrained(model_id, trust_remote_code=True, **kwargs)
+    return tokenizer
+
+
+def load_tokenizer(model_id, tokenizer_cls: Type = AutoTokenizer, **kwargs) -> PreTrainedTokenizer:
+    local_directory = get_pretrained_model_folder(model_id)
+    try:
+        tokenizer = load_local_tokenizer(local_directory, tokenizer_cls=tokenizer_cls, **kwargs)
+    except Exception:
+        tokenizer = load_remote_tokenizer(model_id, tokenizer_cls=tokenizer_cls, **kwargs)
+        tokenizer.save_pretrained(str(local_directory))  # type: ignore
+    return tokenizer
+
+
+@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
 def load_evaluator(name):
-    seqeval = evaluate.load(name)
-    return seqeval
+    return evaluate.load(name)

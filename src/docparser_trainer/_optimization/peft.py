@@ -43,28 +43,30 @@ def hard_prompt_tuning(model, tokenizer, prompt=None):
     return model
 
 
-def p_tuning(model):
-    config = PromptEncoderConfig(
-        task_type=TaskType.CAUSAL_LM,
-        num_virtual_tokens=10,
-        encoder_reparameterization_type=PromptEncoderReparameterizationType.LSTM,
-        encoder_num_layers=5,
-        encoder_dropout=0.1,
-        encoder_hidden_size=1024,
-    )
+def p_tuning(model, config: PromptEncoderConfig | None = None):
+    if not config:
+        config = PromptEncoderConfig(
+            task_type=TaskType.CAUSAL_LM,
+            num_virtual_tokens=10,
+            encoder_reparameterization_type=PromptEncoderReparameterizationType.LSTM,
+            encoder_num_layers=5,
+            encoder_dropout=0.1,
+            encoder_hidden_size=1024,
+        )
     print(">>> P tuning")
     model = get_peft_model(model, config)
     model.print_trainable_parameters()
     return model
 
 
-def prefix_tuning(model):
-    config = PrefixTuningConfig(
-        task_type=TaskType.CAUSAL_LM,
-        num_virtual_tokens=10,
-        prefix_projection=False,  # True 表示加个全连接层重参数化, 效果会好些，也更吃显存
-        encoder_hidden_size=1024,
-    )
+def prefix_tuning(model, config: PrefixTuningConfig | None = None):
+    if not config:
+        config = PrefixTuningConfig(
+            task_type=TaskType.CAUSAL_LM,
+            num_virtual_tokens=10,
+            prefix_projection=False,  # True 表示加个全连接层重参数化, 效果会好些，也更吃显存
+            encoder_hidden_size=1024,
+        )
     print(">>> Prefix tuning")
     model = get_peft_model(model, config)
     model.print_trainable_parameters()
@@ -72,30 +74,32 @@ def prefix_tuning(model):
     return model
 
 
-def lora(model):
-    config = LoraConfig(
-        task_type=TaskType.CAUSAL_LM,
-        target_modules=["query_key_value"],  # 查看 model.named_parameters, 支持正则
-        modules_to_save=["word_embeddings"],  # 用法同上
-        inference_mode=False,
-        r=16,
-        lora_alpha=32,  # 权重缩放控制 lora_alpha / r
-        lora_dropout=0.1,
-    )
-    _model = get_peft_model(model, config)
-    _model.print_trainable_parameters()
-    return _model
+def ia3_tuning(model, config: IA3Config | None = None):
+    if not config:
+        config = IA3Config(task_type=TaskType.CAUSAL_LM)
+    model = get_peft_model(model, config)
+    model.print_trainable_parameters()
+    return model
+
+
+def lora_tuning(model, config: LoraConfig | None = None):
+    if not config:
+        config = LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            target_modules=None,  # 查看 model.named_parameters, 支持正则
+            modules_to_save=None,  # 用法同上
+            r=8,
+            lora_alpha=32,  # 权重缩放控制 lora_alpha / r
+            lora_dropout=0.1,
+        )
+    model = get_peft_model(model, config)
+    print('>>> Lora config:')
+    print(config)
+    model.print_trainable_parameters()
+    return model
 
 
 def merge_lora(model, ckpt_dir):
-    peft_model = PeftModel.from_pretrained(model=model, model_id=str(ckpt_dir))
-    # return peft_model
-    merged_model = peft_model.merge_and_unload()
-    return merged_model
-
-
-def ia3(model):
-    config = IA3Config(task_type=TaskType.CAUSAL_LM)
-    model = get_peft_model(model, config)
-    model.print_trainable_parameters()
+    model = PeftModel.from_pretrained(model=model, model_id=str(ckpt_dir))
+    model = model.merge_and_unload()
     return model
