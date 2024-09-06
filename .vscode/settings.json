@@ -61,6 +61,8 @@
     "cSpell.words": [
         "dtype",
         "iterrows",
+        "jieba",
+        "numel",
         "optim",
         "peft",
         "preds",
