@@ -29,8 +29,8 @@ if __name__ == '__main__':
 
     model_id = 'schen/longformer-chinese-base-4096'
     ckpt_dir = Path(
-        '/home/sheldon/repos/docparser_trainer/checkpoints/text_multi_classification/'
-        'customs_declaration_5_labels/trial_1/checkpoint-7600'
+        '/home/sheldon/repos/docparser_trainer/checkpoints/text_multilabel_classification/'
+        'customs_declaration_5_labels/trial_1/checkpoint-7600'  # 修改 ckpt
     )
     tokenizer = load_tokenizer(model_id)
     model = load_model(

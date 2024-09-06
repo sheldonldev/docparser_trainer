@@ -69,7 +69,7 @@ class GenerativeDataCollatorWithPadding(DataCollatorWithPadding):
         return super().__call__(augmented_features)
 
 
-def train_and_save_result(trainer: Trainer, resume_from_checkpoint: bool):
+def train_and_save_result(trainer: Trainer, resume_from_checkpoint: bool = False):
 
     train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
     trainer.save_model()
@@ -110,7 +110,7 @@ def train(
     model_id: str,
     output_dir: Path,
     ckpt_dir: Path | None = None,
-    resume_from_checkpoint: bool = False,
+    resume_from_checkpoint: bool = True,
 ):
     '''
     model_id: 模型对应的 huggingface 的 model_id, 用于加载 tokenizer 和 model,
@@ -118,13 +118,13 @@ def train(
         本地存储需要配置环境变量 PRETRAINED_ROOT, 可以用 docparser_trainer._cfg.setup_env() 配上.
     output_dir: 用于模型训练后保存检查点.
     ckpt_dir: 如果是 None，加载基座模型，否则从指定检查点加载模型.
-    resume_from_checkpoint: 在指定了检查点的情况下，且 resume_from_checkpoint 为 True，
-        则训练轮次会在原有检查点基础上继续.
+    resume_from_checkpoint: 在指定了检查点的情况下，resume_from_checkpoint 只能为 False，
+        如果 resume_from_checkpoint 为 True 则训练轮次会在 output_dir 从最新的 ckpt 继续.
     '''
     train_dataset, eval_dataset = preprocess_datasets()
     tokenizer = load_tokenizer(model_id, tokenizer_cls=BertTokenizer)
 
-    if ckpt_dir is None:
+    if ckpt_dir is not None:
         resume_from_checkpoint = False
 
     model = load_model(
@@ -192,9 +192,10 @@ if __name__ == '__main__':
 
     model_id = 'schen/longformer-chinese-base-4096'
     output_dir = (
-        CKPT_ROOT / 'text_multi_classification' / 'customs_declaration_5_labels' / 'trial_1'
+        CKPT_ROOT / 'text_multilabel_classification' / 'customs_declaration_5_labels' / 'trial_1'
     )
-    ckpt_dir = output_dir.joinpath('checkpoint-7600')
+    ckpt_dir: Path | None = None
+    # ckpt_dir = output_dir.joinpath('checkpoint-8200')
 
     train(
         model_id,
