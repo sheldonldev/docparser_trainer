@@ -11,13 +11,13 @@ from docparser_trainer._interface.model_manager import load_model, load_tokenize
 from docparser_trainer._optimization.peft import (
     bit_fit,
     hard_prompt_tuning,
-    ia3,
-    lora,
+    ia3_tuning,
+    lora_tuning,
     p_tuning,
     prefix_tuning,
     soft_prompt_tuning,
 )
-from docparser_trainer._utils.model_util import print_params
+from docparser_trainer._utils.model_util import print_model_info, print_params
 
 setup_env()
 
@@ -110,22 +110,8 @@ if __name__ == '__main__':
         pretrained_dir=MODEL_ROOT.joinpath(f'{model_id}-generative-chatbot'),
     )
 
-    model_size = sum(param.numel() for param in model.parameters())
-    print(f"model size: {model_size:,} params".capitalize())
-
-    param_gpu_usage = model_size * 4
-    print(f"parameters gpu usage: {param_gpu_usage:,} bytes".capitalize())
-
-    gradient_gpu_usage = model_size * 4
-    print(f"gradient gpu usage: {gradient_gpu_usage:,} bytes".capitalize())
-
-    optimizer_gpu_usage = model_size * 4 * 2
-    print(f"optimizer gpu usage: {optimizer_gpu_usage:,} bytes".capitalize())
-
-    model_gpu_usage = param_gpu_usage + gradient_gpu_usage + optimizer_gpu_usage
-    print(f"model gpu usage: {model_gpu_usage:,} bytes".capitalize())
-
     print_params(model)
+    print_model_info(model)
 
     peft_args = {
         # 'bit_fit': True,
@@ -133,8 +119,8 @@ if __name__ == '__main__':
         # 'hard_prompt_tuning': True,
         # 'p_tuning': True,
         # 'prefix_tuning': True,
-        # 'lora': True,
-        'ia3': True
+        # 'lora_tuning': True,
+        'ia3_tuning': True
     }
     if peft_args.get('bit_fit'):
         bit_fit(model)
@@ -146,10 +132,10 @@ if __name__ == '__main__':
         model = p_tuning(model)
     if peft_args.get('prefix_tuning'):
         model = prefix_tuning(model)
-    if peft_args.get('lora'):
-        model = lora(model)
-    if peft_args.get('ia3'):
-        model = ia3(model)
+    if peft_args.get('lora_tuning'):
+        model = lora_tuning(model)
+    if peft_args.get('ia3_tuning'):
+        model = ia3_tuning(model)
 
     print_params(model)
 

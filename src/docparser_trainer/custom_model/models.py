@@ -9,16 +9,21 @@ from torch import nn
 from docparser_trainer._utils.model_util import print_params
 
 
-def get_model():
-    return nn.Sequential(
-        nn.Linear(10, 10),
-        nn.ReLU(),
-        nn.Linear(10, 2),
-    )
+class SimpleModel(nn.Module):
+    def __init__(self):
+        super(SimpleModel, self).__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(10, 10),
+            nn.ReLU(),
+            nn.Linear(10, 2),
+        )
+
+    def forward(self, x):
+        return self.fc(x)
 
 
 def customize_target_modules():
-    net = get_model()
+    net = SimpleModel()
     print(net)
     config = LoraConfig(target_modules=['0'])
     model = get_peft_model(net, config)  # type: ignore
@@ -30,16 +35,16 @@ def shift_or_band_adapters():
 
     # 第 0 层的 adapter
     config1 = LoraConfig(target_modules=['0'])
-    model1 = get_peft_model(get_model(), config1)  # type: ignore
+    model1 = get_peft_model(SimpleModel(), config1)  # type: ignore
     model1.save_pretrained(str(save_dir / "lora1"))
 
     # 第 2 层的 adapter
     config2 = LoraConfig(target_modules=['2'])
-    model2 = get_peft_model(get_model(), config2)  # type: ignore
+    model2 = get_peft_model(SimpleModel(), config2)  # type: ignore
     model2.save_pretrained(str(save_dir / "lora2"))
 
     # 加载第 0 层的 lora
-    model = PeftModel.from_pretrained(get_model(), save_dir / "lora1", adapter_name='lora1')
+    model = PeftModel.from_pretrained(SimpleModel(), save_dir / "lora1", adapter_name='lora1')
 
     # 加载第 2 层的 lora
     model.load_adapter(str(save_dir / "lora2"), adapter_name='lora2')
