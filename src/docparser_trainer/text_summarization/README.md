@@ -24,7 +24,9 @@ Rouge（Recall-Oriented Understudy for Gisting Evaluation）是一套用于评�
 
 ## 基于 Transformer 的解决方案
 
-### 方案一：编码器 + 解码器 (T5)
+<https://www.cnblogs.com/mengrennwpu/p/17864802.html>
+
+### 方案一：编码器 + 解码器 (T5), Prefix Language Model
 
 - 数据处理
   - input 和 labels 分开处理, labels 的最后一定是 eos_token
@@ -42,7 +44,7 @@ Rouge（Recall-Oriented Understudy for Gisting Evaluation）是一套用于评�
 - 模型结构
   - XXForConditionalGeneration
 
-### 方案二：只使用解码器 (GLM)
+### 方案二：只使用解码器 (GLM), Causal Language Model
 
 - 模型原理
   - 只使用编码器，借助注意力掩码实现编码器解码器的效果，只计算目标部分损失(掩码、自回归、自注意力)
