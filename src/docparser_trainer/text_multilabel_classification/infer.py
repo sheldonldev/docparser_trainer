@@ -10,12 +10,13 @@ setup_env()
 seed_everything(42)
 
 
-def batch_infer(model, tokenizer, texts: List[str], label_names: List[str]):
+def batch_infer(model, tokenizer, texts: List[str]):
     class MultiLabelClassifierPipeline:
         def __init__(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, batch_size=128):
             self.model = model
             self.tokenizer = tokenizer
             self.batch_size = batch_size
+            self.label_names = [v for k, v in model.config.id2label.items()]
 
             self.model.eval()
             if torch.cuda.is_available():
@@ -41,13 +42,15 @@ def batch_infer(model, tokenizer, texts: List[str], label_names: List[str]):
             predictions = (predictions > 0.5).int()
             return predictions.tolist()
 
-        def batch_postprocess(self, predictions, label_names) -> List[List[str]]:
+        def batch_postprocess(self, predictions) -> List[List[str]]:
             results = []
             for pred in predictions:
-                results.append([label_names[i] for i in range(len(label_names)) if pred[i] == 1])
+                results.append(
+                    [self.label_names[i] for i in range(len(self.label_names)) if pred[i] == 1]
+                )
             return results
 
-        def __call__(self, texts, label_names) -> List[List[str]]:
+        def __call__(self, texts) -> List[List[str]]:
             texts_batches = [
                 texts[i : i + self.batch_size] for i in range(0, len(texts), self.batch_size)
             ]
@@ -55,8 +58,8 @@ def batch_infer(model, tokenizer, texts: List[str], label_names: List[str]):
             for texts in texts_batches:
                 inputs = self.batch_preprocess(texts)
                 predictions = self.batch_predict(inputs)
-                results.extend(self.batch_postprocess(predictions, label_names))
+                results.extend(self.batch_postprocess(predictions))
             return results
 
     pipeline = MultiLabelClassifierPipeline(model, tokenizer)
-    return pipeline(texts, label_names)
+    return pipeline(texts)

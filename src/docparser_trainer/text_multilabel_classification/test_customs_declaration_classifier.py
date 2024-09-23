@@ -68,7 +68,7 @@ def batch_test():
                         if x in label_names
                     ]
                 )
-        preds = batch_infer(model, tokenizer, texts, label_names)
+        preds = batch_infer(model, tokenizer, texts)
 
         metrics = get_metrics(
             preds=batch_tags_to_multilabel_vectors(model.config.id2label, preds),
