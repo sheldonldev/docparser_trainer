@@ -12,7 +12,7 @@ seed_everything(42)
 
 def batch_infer(model, tokenizer, texts: List[str], label_names: List[str]):
     class MultiLabelClassifierPipeline:
-        def __init__(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, batch_size=16):
+        def __init__(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, batch_size=128):
             self.model = model
             self.tokenizer = tokenizer
             self.batch_size = batch_size

@@ -3,6 +3,7 @@ from typing import Dict, List
 
 import numpy as np
 from docparser_datasets.customs_declaration.df_parser import get_classification_tag
+from util_common.decorator import ticktock
 
 from docparser_trainer._interface.model_manager import load_model, load_tokenizer
 from docparser_trainer.text_multilabel_classification.infer import batch_infer
@@ -25,12 +26,12 @@ def batch_tags_to_multilabel_vectors(label_mapping, batch_tags):
     return [tags_to_multilabel_vector(tags, label_mapping) for tags in batch_tags]
 
 
-if __name__ == '__main__':
-
+@ticktock()
+def batch_test():
     model_id = 'schen/longformer-chinese-base-4096'
     ckpt_dir = Path(
         '/home/sheldon/repos/docparser_trainer/checkpoints/text_multilabel_classification/'
-        'customs_declaration_5_labels/trial_1/checkpoint-7600'  # 修改 ckpt
+        'customs_declaration_5_labels/trial_1'  # 可修改 ckpt
     )
     tokenizer = load_tokenizer(model_id)
     model = load_model(
@@ -81,3 +82,7 @@ if __name__ == '__main__':
         correct_count += int(acc * file_count)
         total_count += file_count
     print(f'total_files: {total_count}, global_accuracy: {correct_count / total_count}')
+
+
+if __name__ == '__main__':
+    batch_test()

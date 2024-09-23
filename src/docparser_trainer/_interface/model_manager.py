@@ -12,8 +12,6 @@ from transformers import (  # type: ignore
 )
 from util_common.decorator import proxy
 
-from docparser_trainer._cfg import HTTP_PROXY, HTTPS_PROXY
-
 
 def get_pretrained_folder() -> Path | None:
     if os.environ.get('PRETRAINED_ROOT'):
@@ -97,7 +95,7 @@ def load_model(
     return model
 
 
-@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
+@proxy(http_proxy=os.environ.get('HTTP_PROXY', ''), https_proxy=os.environ.get('HTTPS_PROXY', ''))
 def load_remote_model(
     model_id,
     model_cls: Type = AutoModel,
@@ -119,7 +117,7 @@ def load_local_tokenizer(
     return tokenizer
 
 
-@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
+@proxy(http_proxy=os.environ.get('HTTP_PROXY', ''), https_proxy=os.environ.get('HTTPS_PROXY', ''))
 def load_remote_tokenizer(
     model_id, tokenizer_cls: Type = AutoTokenizer, **kwargs
 ) -> PreTrainedTokenizer:
@@ -137,6 +135,6 @@ def load_tokenizer(model_id, tokenizer_cls: Type = AutoTokenizer, **kwargs) -> P
     return tokenizer
 
 
-@proxy(http_proxy=HTTP_PROXY, https_proxy=HTTPS_PROXY)
+@proxy(http_proxy=os.environ.get('HTTP_PROXY', ''), https_proxy=os.environ.get('HTTPS_PROXY', ''))
 def load_evaluator(name):
     return evaluate.load(name)

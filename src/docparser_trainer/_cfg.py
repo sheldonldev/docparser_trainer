@@ -23,3 +23,5 @@ HTTPS_PROXY = os.environ.get('HTTPS_PROXY', 'http://127.0.0.1:17890')
 
 def setup_env():
     os.environ['PRETRAINED_ROOT'] = str(PRETRAINED_ROOT)
+    os.environ['HTTP_PROXY'] = HTTP_PROXY
+    os.environ['HTTPS_PROXY'] = HTTPS_PROXY
