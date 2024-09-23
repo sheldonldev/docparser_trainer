@@ -4,6 +4,8 @@ from typing import Dict, List
 import numpy as np
 from docparser_datasets.customs_declaration.df_parser import get_classification_tag
 from util_common.decorator import ticktock
+from util_intelligence.char_util import normalize_char_text
+from util_intelligence.regex import process_spaces
 
 from docparser_trainer._interface.model_manager import load_model, load_tokenizer
 from docparser_trainer.text_multilabel_classification.infer import batch_infer
@@ -60,7 +62,10 @@ def batch_test():
             ]
             text_path = sample_dir.joinpath('pure.txt')
             if not classification_record.empty and text_path.is_file():
-                texts.append(text_path.read_text())
+                text = sample_name + ' '.join(
+                    process_spaces(normalize_char_text(text_path.read_text())).split()
+                )
+                texts.append(text)
                 labels.append(
                     [
                         x
