@@ -1,5 +1,3 @@
-from typing import List
-
 import torch
 from transformers import PreTrainedModel, PreTrainedTokenizer  # type: ignore
 
@@ -10,7 +8,7 @@ setup_env()
 seed_everything(42)
 
 
-def batch_infer(model, tokenizer, texts: List[str]):
+def batch_infer(model, tokenizer, texts: list[str]):
     class MultiLabelClassifierPipeline:
         def __init__(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, batch_size=128):
             self.model = model
@@ -24,7 +22,7 @@ def batch_infer(model, tokenizer, texts: List[str]):
             else:
                 raise Exception('CUDA not available!')
 
-        def batch_preprocess(self, texts: List[str], max_length=2048):
+        def batch_preprocess(self, texts: list[str], max_length=2048):
             encodings = self.tokenizer.batch_encode_plus(
                 texts,
                 max_length=max_length,
@@ -42,7 +40,7 @@ def batch_infer(model, tokenizer, texts: List[str]):
             predictions = (predictions > 0.5).int()
             return predictions.tolist()
 
-        def batch_postprocess(self, predictions) -> List[List[str]]:
+        def batch_postprocess(self, predictions) -> list[list[str]]:
             results = []
             for pred in predictions:
                 results.append(
@@ -50,7 +48,7 @@ def batch_infer(model, tokenizer, texts: List[str]):
                 )
             return results
 
-        def __call__(self, texts) -> List[List[str]]:
+        def __call__(self, texts) -> list[list[str]]:
             texts_batches = [
                 texts[i : i + self.batch_size] for i in range(0, len(texts), self.batch_size)
             ]

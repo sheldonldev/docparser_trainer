@@ -1,6 +1,5 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict
 
 import numpy as np
 from transformers import (  # type: ignore
@@ -120,8 +119,8 @@ def preprocess_datasets(tokenizer, datasets):
 
 def get_result(start_logits, end_logits, examples, features):
 
-    predictions: Dict[str, str] = {}
-    references: Dict[str, str] = {}
+    predictions: dict[str, str] = {}
+    references: dict[str, str] = {}
 
     # example 和 feature 的映射
     example_to_feature = defaultdict(list)

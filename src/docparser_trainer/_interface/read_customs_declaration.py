@@ -1,11 +1,10 @@
 import json
 from pathlib import Path
-from typing import List
 
 from docparser_datasets.customs_declaration.df_parser import get_classification_tag
 
 
-def yield_customs_declaration_data_classification_text(batch_names: List[str]):
+def yield_customs_declaration_data_classification_text(batch_names: list[str]):
     dir = Path("/home/sheldon/repos/docparser_datasets/data/customs_declaration")
 
     def get_split_dict(batch_dir: Path):

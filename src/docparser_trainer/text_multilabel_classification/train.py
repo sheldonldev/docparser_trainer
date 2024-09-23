@@ -1,6 +1,6 @@
 import math
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import torch
 import torch.optim as optim
@@ -38,8 +38,8 @@ class GenerativeDataCollatorWithPadding(DataCollatorWithPadding):
             text = f(text, prob=self.generative_prob)
         return text
 
-    def __call__(self, features: List[Dict[str, Any]], model: PreTrainedModel) -> Dict[str, Any]:
-        augmented_features: List[Dict[str, Any]] = []
+    def __call__(self, features: list[dict[str, Any]], model: PreTrainedModel) -> dict[str, Any]:
+        augmented_features: list[dict[str, Any]] = []
 
         for feature in features:
             if model.training is True:

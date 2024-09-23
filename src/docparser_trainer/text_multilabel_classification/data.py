@@ -1,5 +1,3 @@
-from typing import List
-
 from datasets import Dataset  # type: ignore
 from util_intelligence.regex import process_spaces
 
@@ -24,7 +22,7 @@ label_settings = [
 
 
 def load_data():
-    batch_names: List[str] = [
+    batch_names: list[str] = [
         '20240301-0',
         '20240520-0',
         '20240520-1',

@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 from docparser_datasets.customs_declaration.df_parser import get_classification_tag
@@ -13,7 +12,7 @@ from docparser_trainer.text_multilabel_classification.metrics import get_metrics
 from docparser_trainer.text_multilabel_classification.models import MultiLabelClassifier
 
 
-def tags_to_multilabel_vector(tags: List[str], label_mapping: Dict[int, str]) -> List[int]:
+def tags_to_multilabel_vector(tags: list[str], label_mapping: dict[int, str]) -> list[int]:
     vector = np.zeros(len(label_mapping), dtype=int)
     label_to_index = {label: index for index, label in label_mapping.items()}
 
